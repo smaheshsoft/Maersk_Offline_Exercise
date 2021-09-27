@@ -21,7 +21,7 @@ namespace Maersk.Sorting.Api
             var stopwatch = Stopwatch.StartNew();
 
             var output = job.Input.OrderBy(n => n).ToArray();
-            await Task.Delay(5000); // NOTE: This is just to simulate a more expensive operation
+            await Task.Delay(5000); // NOTE: Added 5 Seconds delay a more expensive operation
 
             var duration = stopwatch.Elapsed;
 

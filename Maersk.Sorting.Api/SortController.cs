@@ -1,6 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
+using System.Linq;
+using Maersk.Sorting.Api.ExceptionHandler;
+using System.Net;
+using Maersk.Sorting.Api.Services;
 
 namespace Maersk.Sorting.Api.Controllers
 {
@@ -9,10 +13,11 @@ namespace Maersk.Sorting.Api.Controllers
     public class SortController : ControllerBase
     {
         private readonly ISortJobProcessor _sortJobProcessor;
-
-        public SortController(ISortJobProcessor sortJobProcessor)
+        private readonly ICacheService _cacheService;
+        public SortController(ISortJobProcessor sortJobProcessor, ICacheService cacheService)
         {
             _sortJobProcessor = sortJobProcessor;
+            _cacheService = cacheService;
         }
 
         [HttpPost("run")]
@@ -32,24 +37,40 @@ namespace Maersk.Sorting.Api.Controllers
         }
 
         [HttpPost]
-        public Task<ActionResult<SortJob>> EnqueueJob(int[] values)
+        public async Task<ActionResult<SortJob>> EnqueueJob(int[] values)
         {
-            // TODO: Should enqueue a job to be processed in the background.
-            throw new NotImplementedException();
+            var pendingJob = new SortJob(
+             id: Guid.NewGuid(),
+             status: SortJobStatus.Pending,
+             duration: null,
+             input: values,
+             output: null);
+            _cacheService.Enqueue(pendingJob);
+            return await Task.FromResult(pendingJob);
         }
 
         [HttpGet]
-        public Task<ActionResult<SortJob[]>> GetJobs()
+        public async Task<ActionResult<SortJob[]>> GetJobs()
         {
             // TODO: Should return all jobs that have been enqueued (both pending and completed).
-            throw new NotImplementedException();
+            var result = _cacheService.Get();
+            if (result != null && result.Any())
+            {
+                return await Task.FromResult(result.ToArray());
+            }
+            return NotFound(new ApiResponse((int)HttpStatusCode.NotFound, "No Jobs found"));
         }
 
         [HttpGet("{jobId}")]
-        public Task<ActionResult<SortJob>> GetJob(Guid jobId)
+        public async Task<ActionResult<SortJob>> GetJob(Guid jobId)
         {
             // TODO: Should return a specific job by ID.
-            throw new NotImplementedException();
+            var result = _cacheService.Get(jobId);
+            if (result != null)
+            {
+                return await Task.FromResult(result);
+            }
+            return NotFound(new ApiResponse((int)HttpStatusCode.NotFound, "Job with id doesnot exist"));
         }
     }
 }
